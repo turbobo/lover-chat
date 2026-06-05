@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       return NextResponse.json({
         reply: mockReply(messages[messages.length - 1]?.content || ''),
+        ai: false,
       });
     }
 
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content?.trim() || '...';
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply, ai: true });
   } catch (e) {
     console.error('Chat API error:', e);
     return NextResponse.json({ error: '服务异常' }, { status: 500 });

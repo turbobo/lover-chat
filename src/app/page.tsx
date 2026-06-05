@@ -26,6 +26,7 @@ interface Scenario {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  ai?: boolean;
 }
 
 interface ScoreResult {
@@ -134,7 +135,7 @@ export default function Home() {
       });
       const data = await res.json();
       const reply = data.reply || data.error || '...';
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply, ai: data.ai }]);
     } catch {
       setMessages((prev) => [...prev, { role: 'assistant', content: '网络异常，稍后再试' }]);
     } finally {
@@ -260,16 +261,21 @@ export default function Home() {
           </div>
         )}
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === 'user'
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-br-md'
-                  : `${selectedChar?.bubbleColor} border text-gray-700 rounded-bl-md`
-              }`}
-            >
-              {msg.content}
+          <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+            <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
+              <div
+                className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                  msg.role === 'user'
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-br-md'
+                    : `${selectedChar?.bubbleColor} border text-gray-700 rounded-bl-md`
+                }`}
+              >
+                {msg.content}
+              </div>
             </div>
+            {msg.role === 'assistant' && msg.ai && (
+              <span className="text-[10px] text-gray-300 mt-1 ml-1">由通义千问生成</span>
+            )}
           </div>
         ))}
         {isTyping && (
