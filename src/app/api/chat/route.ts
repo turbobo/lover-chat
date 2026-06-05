@@ -7,9 +7,10 @@ const SYSTEM_PROMPT = `你是一个恋爱聊天军师，帮助用户想出高情
 用户会告诉你：
 1. 对方的身份（男朋友/女朋友）
 2. 当前场景（可选）
-3. 对方说的话
+3. 之前的聊天记录（如果有的话）
+4. 对方最新说的一句话
 
-请给出5条不同风格的回复建议，每条建议用一句话概括风格标签，然后是具体的回复内容。
+请结合聊天记录上下文，给出5条不同风格的回复建议。每条建议用一句话概括风格标签，然后是具体的回复内容。
 
 严格按照以下JSON格式回复：
 {
@@ -22,27 +23,19 @@ const SYSTEM_PROMPT = `你是一个恋爱聊天军师，帮助用户想出高情
   ]
 }
 
-风格标签示例（根据对方消息灵活选择最合适的5种）：
-- 甜蜜版：温柔甜蜜的回复
-- 幽默版：轻松搞笑的回复
-- 走心版：真诚深情的回复
-- 高情商版：得体有分寸的回复
-- 撩人版：适当暧昧的回复
-- 傲娇版：嘴硬心软的回复
-- 暖心版：温暖治愈的回复
-- 撒娇版：可爱撒娇的回复
-- 霸气版：自信果断的回复
-- 文艺版：浪漫诗意的回复
+风格标签参考（根据语境灵活选择最合适的5种）：
+甜蜜版、幽默版、走心版、高情商版、撩人版、傲娇版、暖心版、撒娇版、霸气版、文艺版、调侃版、深情版
 
 要求：
-- 回复要自然口语化，像真实聊天
-- 每条回复1-3句话，不要太长
-- 5条风格要有明显区分度
-- 考虑对方性别选择合适的语气`;
+- 回复自然口语化，像真实聊天
+- 每条1-3句话，不要太长
+- 5条风格有明显区分度
+- 考虑对话上下文和情绪走向
+- 如果之前聊得开心就延续甜蜜氛围，如果有矛盾就侧重化解`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, partnerGender, scene } = await req.json();
+    const { message, partnerGender, scene, history } = await req.json();
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({ error: '请输入对方说的话' }, { status: 400 });
@@ -53,7 +46,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ suggestions: mockSuggestions(), ai: false });
     }
 
-    const userPrompt = buildPrompt(message, partnerGender, scene);
+    const userPrompt = buildPrompt(message, partnerGender, scene, history);
 
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -85,11 +78,8 @@ export async function POST(req: NextRequest) {
       const result = JSON.parse(text);
       return NextResponse.json({ suggestions: result.suggestions || mockSuggestions(), ai: true });
     } catch {
-      // Try to extract suggestions from text
       const extracted = tryExtract(text);
-      if (extracted) {
-        return NextResponse.json({ suggestions: extracted, ai: true });
-      }
+      if (extracted) return NextResponse.json({ suggestions: extracted, ai: true });
       return NextResponse.json({ suggestions: mockSuggestions(), ai: true });
     }
   } catch (e) {
@@ -98,10 +88,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function buildPrompt(message: string, gender?: string, scene?: string): string {
+interface HistoryItem {
+  role: 'partner' | 'me';
+  content: string;
+}
+
+function buildPrompt(message: string, gender?: string, scene?: string, history?: HistoryItem[]): string {
   let prompt = `对方身份：${gender === 'male' ? '男朋友' : '女朋友'}\n`;
   if (scene) prompt += `当前场景：${scene}\n`;
-  prompt += `对方说的话：${message.trim()}\n\n请给出5条回复建议。`;
+
+  if (history && history.length > 0) {
+    prompt += `\n之前聊天记录：\n`;
+    for (const h of history.slice(-12)) {
+      const label = h.role === 'partner' ? 'TA' : '我';
+      prompt += `${label}：${h.content}\n`;
+    }
+  }
+
+  prompt += `\n对方最新说：${message.trim()}\n\n请结合上下文给出5条回复建议。`;
   return prompt;
 }
 
@@ -110,9 +114,7 @@ function tryExtract(text: string): Array<{ style: string; reply: string }> | nul
   const suggestions: Array<{ style: string; reply: string }> = [];
   for (const line of lines) {
     const match = line.match(/[\d]+[.、)\]]*\s*[「「【]?(.{1,6})[」」】]?[：:]\s*(.+)/);
-    if (match) {
-      suggestions.push({ style: match[1], reply: match[2] });
-    }
+    if (match) suggestions.push({ style: match[1], reply: match[2] });
   }
   return suggestions.length >= 3 ? suggestions.slice(0, 5) : null;
 }
