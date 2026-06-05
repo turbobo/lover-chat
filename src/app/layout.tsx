@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '恋人聊天助手 - AI帮你提升聊天技巧',
-  description: '选择心仪的AI恋人角色，练习聊天技巧，获得专业评分和建议',
+  title: '恋爱聊天军师 - AI帮你高情商回复',
+  description: '输入对方说的话，AI给出5条不同风格的回复建议，还可评分打分',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
